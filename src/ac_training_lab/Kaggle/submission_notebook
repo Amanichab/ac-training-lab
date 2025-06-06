@@ -1,0 +1,83 @@
+!pip install ax-platform==0.4.3
+# Script 2 : bayesian optimization
+
+
+from ax.service.ax_client import AxClient, ObjectiveProperties
+import numpy as np
+import pandas as pd
+
+class Branin :
+    def __init__(self, index:int, X1:float, X2:float) :
+        self.index = index
+        self.X1 = X1
+        self.X2 = X2
+        self.value = self.Calculate_branin(self.X1, self.X2)
+        
+
+    def Calculate_branin(self, x1, x2):
+        return float(
+            (x2 - 5.1 / (4 * np.pi**2) * x1**2 + 5.0 / np.pi * x1 - 6.0)**2 +
+            10 * (1 - 1 / (8 * np.pi)) * np.cos(x1) + 10
+            )
+
+#########
+ID = 145  # Random ID
+#history = []
+Branin_trials = []
+def run_bayesian_optimization(n_init=9, tolerance=1e-3, patience=5):
+    
+    ax_client = AxClient()
+    ax_client.create_experiment(
+        parameters=[
+            {"name": "x1", "type": "range", "bounds": [-5.0, 10.0]},
+            {"name": "x2", "type": "range", "bounds": [0.0, 10.0]},
+        ],
+        objectives={"branin": ObjectiveProperties(minimize=True)},
+    )
+
+    # Initial trials
+
+    for _ in range(n_init):
+        params, trial_index = ax_client.get_next_trial()
+        trial = Branin(trial_index, params['x1'], params['x2'])
+        y = trial.value
+         
+        Branin_trials.append(trial)    # List of trials (Branin' objects)
+                   
+        ax_client.complete_trial(trial_index=trial_index, raw_data=y)
+       
+   
+    best_so_far = float("inf")
+    no_improve_counter = 0
+    bo_iterations = n_init
+    # Stopping condition
+    while no_improve_counter < patience:
+        params, trial_index = ax_client.get_next_trial()
+        
+        ax_client.complete_trial(trial_index=trial_index, raw_data=y)
+
+        bo_iterations += 1
+
+        if y < best_so_far - tolerance:
+            best_so_far = y
+            no_improve_counter = 0
+        else:
+            no_improve_counter += 1
+
+    best_bo_params, best_bo_value = ax_client.get_best_parameters()
+    # Create Dataframe
+
+    dict_list=[vars(obj) for obj in Branin_trials]
+    df = pd.DataFrame(dict_list)
+    solution = df[['index', 'X1', 'X2', 'value']]
+
+    print(solution)
+    
+    solution.to_csv("submission.csv", index=False)
+    
+
+if __name__ == "__main__":
+    run_bayesian_optimization()
+# Check the submission file
+F = open('submission.csv','r')
+print(F.read())
