@@ -1,0 +1,54 @@
+import pandas as pd
+import pandas.api.types
+
+class ParticipantVisibleError(Exception):
+    pass
+
+def score(solution: pd.DataFrame, submission: pd.DataFrame, row_id: int) -> float:
+    """
+    Metric: high score = few iterations
+
+    Columns required:
+    - 'objects'
+    - 'row_id'
+    """
+
+    # verify if row_id exists
+    if row_id not in solution.columns or row_id not in submission.columns:
+        raise ParticipantVisibleError(f"'{row_id}' must be present in both solution and submission files.")
+
+    # delete row_id
+    solution = solution.drop(columns=[row_id])
+    submission = submission.drop(columns=[row_id])
+    
+    # Optimal value
+    target_value = 0.3979
+    
+    # check requirements
+    required_cols = {"objects"}
+    
+    # Considering just 50 trials
+   
+    best_value = submission["value"].iloc[:50].min()
+    
+    for i in range(len(submission["value"])):
+        if submission["value"][i] == best_value :
+            iteration = submission["index"][i] + 1
+   
+    # Determine score
+    if best_value == target_value:
+        score = 100
+    elif target_value < best_value <= 1:
+            score = 100.0 - iteration - 10 * (best_value - target_value)
+    else:
+            score =  0.0
+    
+
+
+    if not pd.notnull(score) or not float('-inf') < score < float('inf'):
+        raise ParticipantVisibleError("Invalid score returned.")
+    return max(0.0, score)
+   
+    
+
+    
